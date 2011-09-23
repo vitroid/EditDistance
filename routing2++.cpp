@@ -8,7 +8,6 @@
 #include <fstream>
 #include <sstream>
 #include <iomanip>
-#include <cstdlib>
 
 using namespace std;
 
@@ -120,6 +119,28 @@ translation( const Coords& fixed, Coords& atoms, const Label& corr,Coord& box )
 
 
 
+void
+rotate( const int size, const Label& members, Label& label )
+{
+
+  for(int m=0;m < size ;m++){
+    cerr << label[members[m]] << "-";
+  }
+  cerr << endl;
+
+  int tmp = label[members[size-1]];
+  for(int m=size-2; m>=0 ;m--){
+    label[members[m+1]] = label[members[m]];
+  }
+  label[members[0]] = tmp;
+
+  for(int m=0;m < size ;m++){
+    cerr << label[members[m]] << "+";
+  }
+  cerr << endl;
+}
+
+
 //loop pathをみつけて、ひとつずらして解消する。
 void
 rondo( const Coords& fixed, const Coords& atoms, Label& label, const Coord& box, const Label& correspond )
@@ -144,23 +165,8 @@ rondo( const Coords& fixed, const Coords& atoms, Label& label, const Coord& box,
 	}
       }
       if ( lattice == i && size > 1 ){
-	cerr << "RONDO " << endl;
-
-	for(int m=0;m < size ;m++){
-	  cerr << label[members[m]] << "-";
-	}
-	cerr << endl;
-
-	int tmp = label[members[size-1]];
-	for(int m=size-2; m>=0 ;m--){
-	  label[members[m+1]] = label[members[m]];
-	}
-	label[members[0]] = tmp;
-
-	for(int m=0;m < size ;m++){
-	  cerr << label[members[m]] << "+";
-	}
-	cerr << endl;
+        cerr << "RONDO " << endl;
+        rotate( size, members, label );
       }
     }
   }	
@@ -197,58 +203,60 @@ linedance( const Coords& fixed, const Coords& atoms, Label& label, const Coord& 
     if ( accept[i] == 0 && donate[i] != 0 ){
       Coord d(3);
       Label members(atoms.size());
-      Label done(atoms.size());
       int size = 0;
-      int first = i;
+      int head = i;
+      double pathlen = 0;
       while(1){
-	members[size] = first;
-        done[first] = 1;
-	size++;
-	int next=correspond[label[first]];
-        if ( size > 20 ){
-          cerr << size << "("<<first<<":"<<next<<")";
+        //cerr << "(" << size << ")" << head << endl;
+	members[size] = head;
+        //循環してしまう場合は
+        for(int k=0;k<size;k++){
+          if ( members[k] == head ){
+            members.erase(members.begin(), members.begin()+k);
+            pathlen = -1;
+            size -= k;
+            cerr << "SHORTCUT" << endl;
+            break;
+          }
         }
-	if ( next == first ){
-	  break;
-	}
-        //avoid loop
-        if ( done[next] ){
-          size = 0;
+        if ( pathlen < 0 ){
           break;
         }
+	size++;
+	int next=correspond[label[head]];
+	if ( next == head ){
+	  break;
+	}
+        double sum = 0.0;
 	for(int k=0;k<3;k++){
-	  double x = atoms[next][k] - atoms[first][k];
+          //dummy operation to avoid bug
+          //if ( head > 10000 )
+          //cerr << next << "::" << head << "::" << k << endl;
+	  double x = atoms[next][k] - atoms[head][k];
 	  x -= rint(x / box[k] ) * box[k];
+          sum += x*x;
 	  d[k] += x;
 	}
-        first = next;
+        pathlen += sum;
+        head = next;
       }
-      
       bool warp=false;
       for(int k=0;k<3;k++){
 	if ( rint(d[k] / box[k]) != 0.0 ){
 	  warp = true;
 	}
       }
+      double sum = 0.0;
+      for(int k=0;k<3;k++){
+        double x = atoms[head][k] - atoms[i][k];
+        sum += x*x;
+      }
       //もしpathの両端が周期境界をまたいでいるなら
-      //実はあとの処理はrondo()と同じ。
-      if ( warp ){
+      //あるいは鎖の末端距離が、鎖の長さより短い場合は
+      //あるいはshortcut loopなら
+      if ( warp || sum < pathlen || pathlen < 0 ){
 	cerr << "LINEDANCE" << endl;
-
-	for(int m=0;m < size ;m++){
-	  cerr << label[members[m]] << "-";
-	}
-	cerr << endl;
-
-	int tmp = label[members[size-1]];
-	for(int m=size-2; m>=0 ;m--){
-	  label[members[m+1]] = label[members[m]];
-	}
-	label[members[0]] = tmp;
-	for(int m=0;m < size ;m++){
-	  cerr << label[members[m]] << "+";
-	}
-	cerr << endl;
+        rotate( size, members, label );
       }
       else{
 	cerr << "NO LINEDANCE" << endl;
@@ -279,7 +287,7 @@ totalscore( const Coords& fixed, const Coords& atoms, Label& label, const Coord&
 
 
 
-bool yaplot = 0;
+int yaplot = 0;
 
 
 string
@@ -296,21 +304,26 @@ output( const Coords& fixed, const Coords& atoms, Label& label, const Coord& box
 	delta[j] -= rint( delta[j] / box[j] ) * box[j];
       }
       //line start
-      sout << "y 1" << endl;
-      sout << "l";
+      stringstream oneline;
+      oneline << "y 1" << endl;
+      oneline << "l";
       for(int j=0;j<3;j++){
-	sout << " " << delta[j];
+	oneline << " " << delta[j];
       }
-
+      double del=0.0;
       for(int j=0;j<3;j++){
 	double d = atoms[label[i]][j] - fixed[i][j];
 	d -= rint( d / box[j] ) * box[j];
+        del += d*d;
         delta[j] += d;
       }
       for(int j=0;j<3;j++){
-	sout << " " << delta[j];
+        oneline << " " << delta[j];
       }
-      sout << endl;
+      oneline << endl;
+      if ( del > 1.0 ){
+        sout << oneline.str();
+      }
     }
     sout << endl;
   }
@@ -349,7 +362,9 @@ full_optimize( const Coords& fixed, const Coords& atoms, Label& label, const Coo
     if ( total < mine ){
       mine = total;
       last = output( fixed, atoms, label, box, total );
-      cout << last << flush;
+      if ( yaplot == 1 ){
+        cout << last << flush;
+      }
     }
     cerr << beta << " " << total << endl;
     for(int i=0;i<loop;i++){
@@ -363,7 +378,9 @@ full_optimize( const Coords& fixed, const Coords& atoms, Label& label, const Coo
     if ( total < mine ){
       mine = total;
       last = output( fixed, atoms, label, box, total );
-      cout << last << flush;
+      if ( yaplot == 1 ){
+        cout << last << flush;
+      }
     }
     cerr << beta << " " << total << endl;
     for(int i=0;i<loop;i++){
@@ -408,6 +425,10 @@ int main(int argc, char* argv[] )
     buf = string(argv[arg]);
     if ( buf == "-y" ){
       yaplot = 1;
+      arg++;
+    }
+    if ( buf == "-Y" ){
+      yaplot = 2;
       arg++;
     }
     else if ( buf == "-l" ){
@@ -458,6 +479,12 @@ int main(int argc, char* argv[] )
     for(int i=0;i<n; i++){
       label[i] = i;
     }
+  }
+  if ( yaplot == 2 ){
+    double total = totalscore(fixed, atoms, label,box );
+    last = output( fixed, atoms, label, box, total );
+    cout << last << flush;
+    exit(0);
   }
   //結晶のi番目の格子点に一番近い液体分子の番号を記す。
   Label correspond = correspondence( fixed, atoms, box );
