@@ -1,9 +1,9 @@
 #iccにしてみても1割程度しか速くならなかった
 #CXX=icpc
 CXX=g++
-CXXFLAGS=-static -O3 -static #-tpp7 -xW -parallel -gcc-name=g++-3.4 -gcc-version=340
+CXXFLAGS=-O3 #-static -O3 -static #-tpp7 -xW -parallel -gcc-name=g++-3.4 -gcc-version=340
 #CXXFLAGS=-O3 -static -tpp7 -xW -parallel #-gcc-name=gcc-3.4 -gcc-version=340
-LDFLAGS=-pthread
+LDFLAGS=    #-pthread
 #DMTX形式で全要素を出力。4096分子だとファイルが巨大になる。
 #CXXDEBUGFLAGS=-g
 all: routing2++.x       
