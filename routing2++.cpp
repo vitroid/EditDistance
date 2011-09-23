@@ -8,6 +8,7 @@
 #include <fstream>
 #include <sstream>
 #include <iomanip>
+#include <cstdlib>
 
 using namespace std;
 
