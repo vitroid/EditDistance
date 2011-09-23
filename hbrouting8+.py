@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-#����򤬤�ä��Ѥ�����ȿž�ˤ���Ŭ����Ԥ���
-#unsolved�Ϥʤ��ʤꡢicepenalty��ɬ�פʤ��ʤ롣
-#����������«��������٤���f-ring��ȿž������������Ȥ��ʤ�Хꥢ���Ǥ����˰㤤�ʤ���
-#������֤����ɤ���ˤޤä�������������ʤ�(;_;)
+#趣向をがらっと変え、環反転による最適化を行う。
+#unsolvedはなくなり、icepenaltyも必要なくなる。
+#しかし、収束がさらに遅い。f-ringを反転させるだけだとかなりバリアがでかいに違いない。
+#初期配置よりも良い解にまったくいきあたらない(;_;)
 
-# �������뤤�Τǡ�������դˤ��롣
+# きもちわるいので、引数を逆にする。
 # this ice.ngph ice.rngs < distorted.ngph
-# ring�ο���������countrings3.py�ˤޤ����롣�ɤ��������Ф�������������
+# ringの数えあげはcountrings3.pyにまかせる。どうせ一回やればいいだけだし。
 
 import sys
 import re
@@ -172,7 +172,7 @@ def saveNGPH( network ):
     s += "-1 -1\n"
     return s
 
-#Ϳ����줿�Ĥ�������F-ring�Ǥ��뤫�ɤ�����Ƚ�ꤹ�롣
+#与えられた環が現状、F-ringであるかどうかを判定する。
 def fring( ring, network ):
     dir = network[ring[-1]][ring[0]]
     for i in range(1,len(ring)):
@@ -182,7 +182,7 @@ def fring( ring, network ):
             return False
     return True
 
-#����ˤʤ����⤷��ʤ����Ǥ򥢥��������뤿��δؿ�
+#辞書にないかもしれない要素をアクセスするための関数
 def value(network,x,y):
     if network.has_key(x):
         if network[x].has_key(y):
@@ -191,7 +191,7 @@ def value(network,x,y):
 
 
 def onestep(beta,rings,network,ref,hamming):
-    ring = rings[random.randint(0,len(rings))-1] #-1ɬ�פ�?����Ϥʤ�����
+    ring = rings[random.randint(0,len(rings))-1] #-1必要か?問題はないけど
     if fring(ring, network):
         nbond = 0
         penalty = 0
@@ -218,8 +218,8 @@ def onestep(beta,rings,network,ref,hamming):
         
 
 
-#�չԤ���������򤿤ɤäơ��Ĥ������륱����������Ϥ���
-#���Τ褦�ʴĤ�̵����ȿž���ƹ���ʤ���
+#逆行する結合だけをたどって、環が描けるケースがあるはず。
+#そのような環は無条件に反転して構わない。
 def Rondo( network, ref, hamming ):
 	def inversiblepath( path ):
 		head = path[-1]
@@ -247,7 +247,7 @@ def Rondo( network, ref, hamming ):
 				#print foundpath
 				for i in foundpath:
 					mark[i] = 1
-				#���ξ��ȿž���Ƥ��ޤ���
+				#その場で反転してしまう。
 				for i in range(0,len(foundpath)):
 					x = foundpath[i-1]
 					y = foundpath[i]
@@ -259,7 +259,7 @@ def Rondo( network, ref, hamming ):
 
 
 
-#Ϳ����줿ͭ���ͥåȥ���ǺǤ�Ĺ����ϩ�򤵤�����
+#与えられた有向ネットワークで最も長い経路をさがす。
 def pathfinder( network, path ):
     head = path[-1]
     if not network.has_key(head):
@@ -272,7 +272,7 @@ def pathfinder( network, path ):
         for i in range(0,len(path)):
             if path[i] == next:
                 #print "LOOP ALERT",path[i:len(path)] + [next]
-                #�㳰�Ȥ��ơ�õ�������Ǥ��롣
+                #例外として、探索を中断する。
                 return path[i:len(path)] + [next]
         result = pathfinder( network, path + [next] )
         if result[0] == result[-1]:
@@ -304,7 +304,7 @@ def LineDance( network, ref, hamming, beta ):
                     if not accept.has_key(j):
                         accept[j] = dict()
                     accept[j][i] = 1
-    #accept/donate�ˤ�ȿž��ǽ�ʷ��ΤߤΥͥåȥ�����Ǥ�����
+    #accept/donateには反転可能な結合のみのネットワークができた。
     heads0 = donate.keys()
     heads = []
     for i in heads0:
@@ -331,7 +331,7 @@ def LineDance( network, ref, hamming, beta ):
         head = path[0]
         tail = path[-1]
         #print path
-        #��ü��Ĥʤ���û��ϩ�򤵤�����Dijkstra���Ѥ��롣
+        #末端をつなぐ最短経路をさがす。Dijkstraを用いる。
         shortcut = shortest_path( donate2, tail,head )
         #print shortcut
         if len(shortcut) <= len(path):
@@ -349,8 +349,8 @@ def LineDance( network, ref, hamming, beta ):
     return hamming
 
 
-#�ƥ���
-#�Ȥꤢ�����������ɤߤ����f-ring���ʬ�����롣
+#テスト
+#とりあえず、全部読みこんでf-ringを仕分けする。
 coord = None
 box   = None
 yaplot=0
