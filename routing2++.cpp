@@ -10,6 +10,7 @@
 #include <iomanip>
 #include <cstdlib>
 
+
 using namespace std;
 
 typedef vector<double> Coord;
