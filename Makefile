@@ -19,27 +19,27 @@ test2: int.all
 #routing2により、重心位置が近付くようにラベルを交換する。
 %.route2.log: samples/ice.ar3a samples/%.ar3a
 	./routing2+ -l -5 samples/ice.ar3a < samples/$*.ar3a > $@
-%.route2++.log: samples/ice.ar3a samples/%.ar3a
-	./routing2++ -l -5 samples/ice.ar3a < samples/$*.ar3a > $@
+%.route2++.log: samples/ice.ar3a samples/%.ar3a routing2++.x
+	./routing2++.x -l -5 samples/ice.ar3a < samples/$*.ar3a > $@
 #重心移動経路の可視化
 %.route2++.yap: samples/ice.ar3a %.route2++.ar3a
-	cat $*.route2++.ar3a | ./routing2++ -l -5 -y samples/ice.ar3a > $@
+	cat $*.route2++.ar3a | ./routing2++.x -l -5 -y samples/ice.ar3a > $@
 %.route2++.Yap: samples/ice.ar3a %.ar3a %.route2++.ar3a
 	cat $*.route2++.ar3a | ./routing2++ -l -5 -Y samples/ice.ar3a > $@
 #最適なラベリングを取り出す。
 %.route2.vmrk: %.route2.log
 	sed -n -e '1,/#####/d' -e '/VMRK/,$$p' $< > $@
 %.route2++.vmrk: %.route2++.log
-	sed -n -e '1,/#####/d' -e '/VMRK/,$$p' $< > $@
+	sed -n -e '/VMRK/,$$p' $< > $@
 %.ar3a: %.log
-	sed -e '1,/#####/d' -e '/VMRK/,$$d' $< > $@
+	sed -n -e '/#####/,/VMRK/p' $< | sed -e 's/^@VMRK//' > $@
 #それに合わせて結合をrelabelする。
 %.route2.ngph: %.route2.vmrk %.hb
 	perl ./relabelngph.pl $*.route2.vmrk < $*.hb > $@
 %.route2.ngph: %.route2.vmrk %.ngph
 	perl ./relabelngph.pl $*.route2.vmrk < $*.ngph > $@
-%.route2++.ngph: %.route2++.vmrk %.ngph
-	perl ./relabelngph.pl $*.route2++.vmrk < $*.ngph > $@
+%.route2++.ngph: %.route2++.vmrk samples/%.hb
+	perl ./relabelngph.py $*.route2++.vmrk < samples/$*.hb > $@
 #relabel後のグラフは、無向グラフとしては氷のグラフとかなり近いはず。
 #そこで、無向グラフとして照合して距離を求める。
 %.uhd: samples/ice.hb %.ngph
