@@ -78,12 +78,11 @@ def readAR3A(file):
     line = file.readline()
     #print line,
     n = int(line)
-    pattern = re.compile(' +')
     coord = []
-    for i in range(0,n):
+    for i in range(n):
         line = file.readline()
-        xyz = pattern.split(line.strip())
-        xyz = map(float,xyz)
+        xyz = line.split()
+        xyz = map(float,xyz[0:3])
         coord.append( xyz );
     return coord
 
