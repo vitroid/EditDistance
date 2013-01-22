@@ -1,10 +1,6 @@
-<<<<<<< HEAD
 .DS_Store
-=======
 
 routing2++.x
 
-int.route2++.log
+int.*
 
-int.route2++.vmrk
->>>>>>> .
