@@ -1,36 +1,41 @@
-#iccにしてみても1割程度しか速くならなかった
+# -*- coding: utf-8 -*-
 #CXX=icpc
 CXX=g++
-CXXFLAGS=-O3 #-static -O3 -static #-tpp7 -xW -parallel -gcc-name=g++-3.4 -gcc-version=340
-#CXXFLAGS=-O3 -static -tpp7 -xW -parallel #-gcc-name=gcc-3.4 -gcc-version=340
+CXXFLAGS=-O3
 LDFLAGS=    #-pthread
-#DMTX形式で全要素を出力。4096分子だとファイルが巨大になる。
-#CXXDEBUGFLAGS=-g
-all: routing2++.x       
+all: routing2++.x
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@ $(LDFLAGS) 
 %.x: %.o
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS) 
-test: samples/ice.ar3a samples/defect.ar3a
-	./routing3 -y samples/ice.ar3a < samples/defect.ar3a > converge.yap
-test2: int.all
+test: int.all
 %.all:
-	make $*.route2++.log $*.route2++.vmrk $*.route2++.ngph $*.route2++.yap $*.hbroute8+.ngph $*.hbroute8+.yap
-#routing2により、重心位置が近付くようにラベルを交換する。
-%.route2.log: samples/ice.ar3a samples/%.ar3a
-	./routing2+ -l -5 samples/ice.ar3a < samples/$*.ar3a > $@
+	make -k $*.route2++.log $*.route2++.vmrk $*.route2++.ngph $*.route2++.yap $*.hbroute8+.ngph $*.hbroute8+.yap
+#Estimate the geometrical edit distance (GED) by routing2++.x
 %.route2++.log: samples/ice.ar3a samples/%.ar3a routing2++.x
 	./routing2++.x -l -5 samples/ice.ar3a < samples/$*.ar3a > $@
-#重心移動経路の可視化
+#Extract the optimized path info from log file of routing2++.x
+%.route2++.vmrk: %.route2++.log
+	sed -n -e '/VMRK/,$$p' $< > $@
+#Relabel the hydrogen bonds in order that the total displacements be the smallest according to the result by routing2++.x
+%.route2++.ngph: %.route2++.vmrk samples/%.hb
+	perl ./relabelngph.py $*.route2++.vmrk < samples/$*.hb > $@
+#Visualize the rgeometrical edit path for YaPlot
 %.route2++.yap: samples/ice.ar3a %.route2++.ar3a
 	cat $*.route2++.ar3a | ./routing2++.x -l -5 -y samples/ice.ar3a > $@
 %.route2++.Yap: samples/ice.ar3a %.ar3a %.route2++.ar3a
 	cat $*.route2++.ar3a | ./routing2++ -l -5 -Y samples/ice.ar3a > $@
-#最適なラベリングを取り出す。
-%.route2.vmrk: %.route2.log
-	sed -n -e '1,/#####/d' -e '/VMRK/,$$p' $< > $@
-%.route2++.vmrk: %.route2++.log
-	sed -n -e '/VMRK/,$$p' $< > $@
+#Estimate the topological edit distance (TED) by hbrouting8+.py
+%.hbroute8+.ngph: %.route2++.ngph samples/ice.hb
+	python ./hbrouting8+.py samples/ice.hb samples/ice.rngs < $*.route2++.ngph > $@
+#Visualize the topological edit path for YaPlot
+%.hbroute8+.yap: %.hbroute8+.ngph %.route2++.ngph
+	python ./hbrouting8+.py -y samples/ice.ar3a $*.hbroute8+.ngph samples/ice.rngs < $*.route2+
+
+
+
+
+#Obsolete / Unused #####################################################
 %.ar3a: %.log
 	sed -n -e '/#####/,/VMRK/p' $< | sed -e 's/^@VMRK//' > $@
 #それに合わせて結合をrelabelする。
@@ -38,8 +43,6 @@ test2: int.all
 	perl ./relabelngph.pl $*.route2.vmrk < $*.hb > $@
 %.route2.ngph: %.route2.vmrk %.ngph
 	perl ./relabelngph.pl $*.route2.vmrk < $*.ngph > $@
-%.route2++.ngph: %.route2++.vmrk samples/%.hb
-	perl ./relabelngph.py $*.route2++.vmrk < samples/$*.hb > $@
 #relabel後のグラフは、無向グラフとしては氷のグラフとかなり近いはず。
 #そこで、無向グラフとして照合して距離を求める。
 %.uhd: samples/ice.hb %.ngph
